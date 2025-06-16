@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Campo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Token Counter - Protección</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script> 
 </head>
@@ -11,38 +11,72 @@
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-6">
 
   <div id="uno" class="w-full max-w-lg bg-white p-6 rounded shadow">
-    <h2 class="text-xl font-semibold mb-4">token counter for LLM</h2>
+    <h2 class="text-xl font-semibold mb-4">Token Counter for LLM</h2>
     
     <textarea id="texto"
       class="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
       rows="5"
-      placeholder="Write your text here..."></textarea>
+      placeholder="Escribe tu texto aquí..."></textarea>
 
     <p class="mt-4 text-sm text-gray-600">
-      Approximate number of tokens: <span id="contador" class="font-medium">0</span>
+      Número aproximado de tokens: <span id="contador" class="font-medium">0</span>
     </p>
   </div>
 
   <script>
-    const textarea = document.getElementById('texto');
-    const contador = document.getElementById('contador');
+    // ===== Bloqueos de seguridad básicos =====
 
-    function contarTokens(texto) {
-      // Elimina espacios extra y divide por espacios y signos de puntuación comunes
-      const tokens = texto.trim().split(/(?=\b)/).filter(Boolean);
-      return tokens.length;
-    }
+    // 1. Bloquear clic derecho (menú contextual)
+    document.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+      console.warn("Clic derecho bloqueado.");
+    });
 
-    function actualizarContador() {
-      const texto = textarea.value;
-      const tokenCount = contarTokens(texto);
-      contador.textContent = tokenCount;
-    }
+    // 2. Bloquear atajos de teclado para abrir DevTools
+    document.addEventListener("keydown", function (e) {
+      if (
+        e.key === "F12" ||
+        (e.ctrlKey && e.shiftKey && e.key === "I") ||   // Inspeccionar
+        (e.ctrlKey && e.shiftKey && e.key === "C") ||   // Consola
+        (e.ctrlKey && e.shiftKey && e.key === "J") ||   // Consola (Chrome)
+        (e.ctrlKey && e.shiftKey && e.key === "K")       // Consola (Firefox)
+      ) {
+        e.preventDefault();
+        console.log("Acceso a DevTools bloqueado.");
+      }
+    });
 
-    textarea.addEventListener('input', actualizarContador);
+    // 3. Detección básica de DevTools abiertas
+    const devtools = new RegExp(/(\\w+)/);
+    const monitorDevTools = setInterval(() => {
+      const start = performance.now();
+      for (let i = 0; i < 10000; i++) {}
+      const duration = performance.now() - start;
+      if (duration > 100) {
+        console.log("Se detectó posible uso de DevTools.");
+        clearInterval(monitorDevTools);
+        alert("Uso de herramientas de desarrollo detectado. Acceso restringido.");
+        document.getElementById("texto").disabled = true;
+      }
+    }, 1000);
 
-    // Inicializa en 0 al cargar la página
-    actualizarContador();
+    // ===== Contador de tokens seguro =====
+    (function () {
+      const textarea = document.getElementById('texto');
+      const contador = document.getElementById('contador');
+
+      function contarTokens(texto) {
+        return texto.trim().split(/\s+/).filter(Boolean).length;
+      }
+
+      function actualizarContador() {
+        const tokenCount = contarTokens(textarea.value);
+        contador.textContent = tokenCount;
+      }
+
+      textarea.addEventListener('input', actualizarContador);
+      actualizarContador();
+    })();
   </script>
 
 </body>

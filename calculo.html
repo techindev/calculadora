@@ -2,11 +2,12 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Token Cost Calculator</title>
   <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script> 
+  <script src="https://cdn.tailwindcss.com"></script>    
 </head>
+
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
 
   <div class="bg-white shadow-lg rounded-lg p-6 max-w-md w-full">
@@ -35,6 +36,7 @@
         value="0.10"
         step="0.0001"
         class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+        disabled
       />
     </div>
 
@@ -59,6 +61,7 @@
         id="cacheTokens"
         value="1000"
         class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+        disabled
       />
     </div>
 
@@ -77,71 +80,134 @@
     <h3 id="resultado" class="mt-6 text-lg font-medium text-center text-gray-800"></h3>
   </div>
 
-  
-
+  <!-- Scripts de Protección -->
   <script>
-    function actualizarEstadoCamposCache() {
-      const enableCache = document.getElementById("enableCache").checked;
-      const cachePrecioInput = document.getElementById("cachePricePerMillion");
-      const cacheTokensInput = document.getElementById("cacheTokens");
-
-      cachePrecioInput.disabled = !enableCache;
-      cacheTokensInput.disabled = !enableCache;
-
-      // Opcional: oscurecer los campos para dar feedback visual
-      if (enableCache) {
-        cachePrecioInput.classList.remove("bg-gray-100", "cursor-not-allowed");
-        cacheTokensInput.classList.remove("bg-gray-100", "cursor-not-allowed");
-      } else {
-        cachePrecioInput.classList.add("bg-gray-100", "cursor-not-allowed");
-        cacheTokensInput.classList.add("bg-gray-100", "cursor-not-allowed");
-      }
-    }
-
-    function calcularCosto() {
-      const precioPorMillon = parseFloat(document.getElementById("pricePerMillion").value);
-      const tokens = parseInt(document.getElementById("tokens").value);
-      const cachePrecioPorMillon = parseFloat(document.getElementById("cachePricePerMillion").value);
-      const cacheTokens = parseInt(document.getElementById("cacheTokens").value);
-      const enableCache = document.getElementById("enableCache").checked;
-
-      if (isNaN(precioPorMillon) || isNaN(tokens)) {
-        document.getElementById("resultado").innerText = "Please enter valid values.";
-        return;
-      }
-
-      // Calcular costo base
-      let costoTotal = (tokens / 1_000_000) * precioPorMillon;
-
-      // Agregar costo de caché si está activo
-      if (enableCache && !isNaN(cacheTokens) && !isNaN(cachePrecioPorMillon)) {
-        const costoCache = (cacheTokens / 1_000_000) * cachePrecioPorMillon;
-        costoTotal += costoCache;
-
-        document.getElementById("resultado").innerText =
-          `Total cost for ${tokens.toLocaleString()} tokens + ${cacheTokens.toLocaleString()} cache tokens is: $${costoTotal.toFixed(6)}`;
-      } else {
-        document.getElementById("resultado").innerText =
-          `Total cost for ${tokens.toLocaleString()} tokens is: $${costoTotal.toFixed(6)}`;
-      }
-    }
-
-    // Escuchar cambios
-    document.getElementById("pricePerMillion").addEventListener("input", calcularCosto);
-    document.getElementById("tokens").addEventListener("input", calcularCosto);
-    document.getElementById("cachePricePerMillion").addEventListener("input", calcularCosto);
-    document.getElementById("cacheTokens").addEventListener("input", calcularCosto);
-    document.getElementById("enableCache").addEventListener("change", () => {
-      actualizarEstadoCamposCache();
-      calcularCosto();
+    // === Bloqueo de clic derecho ===
+    document.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
     });
 
-    // Inicializar al cargar
-    window.addEventListener("load", () => {
-      actualizarEstadoCamposCache();
-      calcularCosto();
+    // === Bloqueo de atajos comunes para abrir herramientas de desarrollo ===
+    document.addEventListener("keydown", function (e) {
+      if (
+        e.key === "F12" ||
+        (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) ||
+        (e.ctrlKey && ['u', 's'].includes(e.key.toLowerCase()))
+      ) {
+        e.preventDefault();
+      }
     });
+
+    // === Detección básica de DevTools abiertas ===
+    let devToolsOpen = false;
+    const start = performance.now();
+    console.log('%c ', 'font-size: 50px;');
+    if (performance.now() - start > 100) devToolsOpen = true;
+
+    if (devToolsOpen) {
+      alert("DevTools detectadas. Acceso restringido.");
+      document.querySelectorAll("input").forEach(input => input.disabled = true);
+    }
+
+    // === Detección de scripts externos (posibles extensiones) ===
+    const originalScriptCount = document.scripts.length;
+
+    setInterval(() => {
+      if (document.scripts.length > originalScriptCount + 2) {
+        console.warn("Posible script de extensión detectado");
+        location.reload(); // Opcional: recargar página
+      }
+    }, 1000);
+
+    // === Protección contra funciones globales comunes usadas por extensiones ===
+    const blockedGlobals = ['adblock', '__ga', '__insp', 'someExtensionFunction'];
+
+    blockedGlobals.forEach(func => {
+      Object.defineProperty(window, func, {
+        get: () => {
+          console.warn(`Acceso a '${func}' bloqueado`);
+          return undefined;
+        },
+        configurable: false,
+        enumerable: false
+      });
+    });
+
+    // === Observador de cambios en el DOM (detecta modificaciones por extensiones) ===
+    const observer = new MutationObserver((mutationsList) => {
+      for (let mutation of mutationsList) {
+        if (mutation.type === 'childList') {
+          console.warn("Cambios en el DOM detectados (posiblemente extensión)");
+          location.reload(); // Opcional: recargar si se detectan modificaciones
+        }
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
   </script>
 
+  <!-- Lógica encapsulada para dificultar la manipulación -->
+  <script>
+    (function () {
+      const resultado = document.getElementById("resultado");
+
+      function actualizarEstadoCamposCache() {
+        const enableCache = document.getElementById("enableCache").checked;
+        const cachePrecioInput = document.getElementById("cachePricePerMillion");
+        const cacheTokensInput = document.getElementById("cacheTokens");
+
+        cachePrecioInput.disabled = !enableCache;
+        cacheTokensInput.disabled = !enableCache;
+
+        if (enableCache) {
+          cachePrecioInput.classList.remove("bg-gray-100", "cursor-not-allowed");
+          cacheTokensInput.classList.remove("bg-gray-100", "cursor-not-allowed");
+        } else {
+          cachePrecioInput.classList.add("bg-gray-100", "cursor-not-allowed");
+          cacheTokensInput.classList.add("bg-gray-100", "cursor-not-allowed");
+        }
+      }
+
+      function calcularCosto() {
+        const precioPorMillon = parseFloat(document.getElementById("pricePerMillion").value);
+        const tokens = parseInt(document.getElementById("tokens").value);
+        const cachePrecioPorMillon = parseFloat(document.getElementById("cachePricePerMillion").value);
+        const cacheTokens = parseInt(document.getElementById("cacheTokens").value);
+        const enableCache = document.getElementById("enableCache").checked;
+
+        if (isNaN(precioPorMillon) || isNaN(tokens)) {
+          resultado.innerText = "Please enter valid values.";
+          return;
+        }
+
+        let costoTotal = (tokens / 1_000_000) * precioPorMillon;
+
+        if (enableCache && !isNaN(cacheTokens) && !isNaN(cachePrecioPorMillon)) {
+          const costoCache = (cacheTokens / 1_000_000) * cachePrecioPorMillon;
+          costoTotal += costoCache;
+          resultado.innerText =
+            `Total cost for ${tokens.toLocaleString()} tokens + ${cacheTokens.toLocaleString()} cache tokens is: $${costoTotal.toFixed(6)}`;
+        } else {
+          resultado.innerText =
+            `Total cost for ${tokens.toLocaleString()} tokens is: $${costoTotal.toFixed(6)}`;
+        }
+      }
+
+      // Event listeners
+      document.getElementById("pricePerMillion").addEventListener("input", calcularCosto);
+      document.getElementById("tokens").addEventListener("input", calcularCosto);
+      document.getElementById("cachePricePerMillion").addEventListener("input", calcularCosto);
+      document.getElementById("cacheTokens").addEventListener("input", calcularCosto);
+      document.getElementById("enableCache").addEventListener("change", () => {
+        actualizarEstadoCamposCache();
+        calcularCosto();
+      });
+
+      window.addEventListener("load", () => {
+        actualizarEstadoCamposCache();
+        calcularCosto();
+      });
+    })();
+  </script>
 </body>
 </html>
